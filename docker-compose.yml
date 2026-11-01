@@ -50,7 +50,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
-      PROG_PODOBIENSTWA: ${PROG_PODOBIENSTWA:-0.75}
+      PROG_PODOBIENSTWA: ${PROG_PODOBIENSTWA:-0.5}
     ports: ["3000:3000"]
     depends_on:
       db: { condition: service_healthy }

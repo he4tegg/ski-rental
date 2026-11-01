@@ -18,7 +18,9 @@ export default function Czat() {
     rozmowa.current = null;
     setWiadomosci([]);
   }, [ja?.id_uzytkownika]);
-  useEffect(() => dol.current?.scrollIntoView({ block: 'end' }), [wiadomosci]);
+  useEffect(() => {
+    dol.current?.scrollIntoView({ block: 'end' }); // nowe przeglądarki zwracają tu Promise, a efekt nie może go zwrócić
+  }, [wiadomosci]);
 
   const zmienOstatnia = (f: (w: Wiadomosc) => Wiadomosc) => setWiadomosci((ws) => [...ws.slice(0, -1), f(ws[ws.length - 1])]);
 

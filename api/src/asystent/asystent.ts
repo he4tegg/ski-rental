@@ -7,7 +7,7 @@ import { Ja, Uzytkownik, blad, waliduj } from '../wspolne';
 import { ClaudeApiAdapter, DostawcaLLM, NarzedzieLLM, WiadomoscLLM, llmDostepny } from './dostawcy';
 import { BRAK_W_BAZIE, LIMIT_DZIENNY, ODMOWA_WULGARNA, OSTRZEZENIE_MEDYCZNE, czyWulgarne, czyZdrowotne } from './straznik';
 
-const PROG = Number(process.env.PROG_PODOBIENSTWA ?? 0.75);
+const PROG = Number(process.env.PROG_PODOBIENSTWA ?? 0.5);
 const HISTORIA = 10;
 
 const SYSTEM = `Jesteś asystentem wypożyczalni sprzętu i szkółki narciarskiej. Pomagasz głównie osobom początkującym.
@@ -69,6 +69,7 @@ export class AsystentAIService {
         // Bez modelu: odpowiedź to dosłowne fragmenty najlepiej pasujących artykułów (najwyżej dwóch).
         const f = await wyszukaj(tresc);
         const poArtykule = f.filter((x, i) => f.findIndex((y) => y.id_artykulu === x.id_artykulu) === i).slice(0, 2);
+        zrodla = poArtykule;
         if (poArtykule.length) pisz(poArtykule.map((x) => `**${x.tytul}**: ${x.tresc}`).join('\n\n'));
       }
       if (bezOdpowiedzi && narzedzie === 'BAZA_WIEDZY') pisz(BRAK_W_BAZIE);
