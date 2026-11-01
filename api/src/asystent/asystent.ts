@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { Fragment, fragmentyOpublikowane } from '../baza-wiedzy/indeksowanie';
 import { Ja, Uzytkownik, blad, waliduj } from '../wspolne';
-import { ClaudeApiAdapter, DostawcaLLM, NarzedzieLLM, WiadomoscLLM, llmDostepny } from './dostawcy';
+import { DostawcaLLM, NarzedzieLLM, WiadomoscLLM, wybierzLLM } from './dostawcy';
 import { BRAK_W_BAZIE, LIMIT_DZIENNY, ODMOWA_WULGARNA, OSTRZEZENIE_MEDYCZNE, czyWulgarne, czyZdrowotne } from './straznik';
 
 const PROG = Number(process.env.PROG_PODOBIENSTWA ?? 0.5);
@@ -127,7 +127,7 @@ export class AsystentAIService {
   }
 }
 
-const asystent = new AsystentAIService(llmDostepny() ? new ClaudeApiAdapter() : null);
+const asystent = new AsystentAIService(wybierzLLM());
 
 @Controller('asystent')
 export class AsystentAIController {
