@@ -5,7 +5,7 @@ MVP na 03.11 według opisu projektu (tabela 4.1): wypożyczalnia sprzętu oraz b
 ## Uruchomienie
 
 ```bash
-cp .env.example .env    # ustaw JWT_SECRET, opcjonalnie ANTHROPIC_API_KEY
+cp .env.example .env    # ustaw JWT_SECRET i ANTHROPIC_API_KEY (u Ciebie .env już jest)
 docker compose up --build
 ```
 
@@ -18,6 +18,19 @@ Pierwszy start pobiera model embeddingów `bge-m3` (ok. 1,2 GB), kolejne korzyst
 | http://localhost:8025 | Mailpit: e-maile z linkiem potwierdzającym rejestrację |
 
 Konta testowe (hasło `Haslo123!`, zmienisz przez `SEED_HASLO`): `admin@npi.local`, `pracownik@npi.local`, `klient@npi.local`.
+
+## Scenariusz sprawdzenia (ok. 10 minut)
+
+1. **Rejestracja (F-01).** „Załóż konto” → wypełnij formularz → otwórz http://localhost:8025, kliknij link z e-maila → zaloguj się nowym kontem.
+2. **Profil i dobór rozmiaru (F-04, F-09).** Kliknij swoje imię w menu, wpisz wzrost, wagę, rozmiar buta i poziom → „Zapisz”. W katalogu ustaw daty „Od/Do”, otwórz Atomic Redster X5: rozmiar ze ★ to zalecana długość (wzrost − 15 cm dla początkującego).
+3. **Rezerwacja (F-06, F-11, F-17).** „Dodaj do koszyka” dla nart i butów → „Koszyk” → „Zarezerwuj”. W „Moje rezerwacje” widać kod `R-…`; tu można też anulować (F-12).
+4. **Wydanie (F-13, F-14).** Wyloguj się, zaloguj jako `pracownik@npi.local` → „Obsługa” → kliknij rezerwację (albo wyszukaj po kodzie lub nazwisku) → wybierz egzemplarze → „Wydaj sprzęt”. Wydanie działa w dniach rezerwacji, więc do testu rezerwuj od dziś.
+5. **Zwrot ze szkodą (F-16).** W tej samej rezerwacji wpisz opis uszkodzenia i opłatę przy jednym egzemplarzu → „Przyjmij zwrot”. Pojawi się rozliczenie kaucji, a egzemplarz trafi do serwisu (zakładka „Magazyn”).
+6. **Wypożyczenie na miejscu (F-15).** „Obsługa” → „Wypożyczenie na miejscu” → dane klienta i pozycje → od razu przechodzisz do wydania.
+7. **Asystent (F-33, F-34, F-39, F-40).** Przycisk „Zapytaj asystenta” w prawym dolnym rogu. Pytania: „Co zabrać na pierwsze zajęcia?” (odpowiedź ze źródłami), „Jaka jest stolica Francji?” (odmowa), „Boli mnie kolano po upadku” (rada: lekarz, GOPR 985, 112), „Ile kosztuje karnet?” (brak w bazie, pytanie trafia do admina). Oceń odpowiedź 👍/👎.
+8. **Administrator (F-05, F-07, F-28, F-32, F-48).** Zaloguj się jako `admin@npi.local` → „Administracja”: „Pytania bez odpowiedzi” pokazuje pytanie o karnet; w „Baza wiedzy” → „Nowy artykuł” napisz odpowiedź, zapisz, zaznacz to pytanie i „Opublikuj”. Po kilku sekundach asystent odpowiada już na to pytanie. Dalej: zmiana roli lub blokada konta w „Konta”, ceny w „Katalog i cennik”, każda zmiana z obrazem przed i po w „Dziennik audytu”.
+
+Czysty start bez danych z testów: `docker compose down -v`, potem `docker compose up --build` (model embeddingów pobierze się ponownie).
 
 ## Co jest w MVP
 
