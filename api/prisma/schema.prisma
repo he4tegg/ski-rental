@@ -1,0 +1,467 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model artykul {
+  id_artykulu                                        Int                      @id @default(autoincrement())
+  id_kategorii_wiedzy                                Int
+  id_autora                                          Int
+  id_zatwierdzajacego                                Int?
+  tytul                                              String                   @db.VarChar(200)
+  tresc_markdown                                     String
+  status                                             status_artykulu          @default(SZKIC)
+  wersja                                             Int                      @default(1)
+  data_publikacji                                    DateTime?                @db.Timestamptz(6)
+  data_modyfikacji                                   DateTime                 @default(now()) @db.Timestamptz(6)
+  uzytkownik_artykul_id_autoraTouzytkownik           uzytkownik               @relation("artykul_id_autoraTouzytkownik", fields: [id_autora], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  kategoria_wiedzy                                   kategoria_wiedzy         @relation(fields: [id_kategorii_wiedzy], references: [id_kategorii_wiedzy], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik_artykul_id_zatwierdzajacegoTouzytkownik uzytkownik?              @relation("artykul_id_zatwierdzajacegoTouzytkownik", fields: [id_zatwierdzajacego], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  fragment_artykulu                                  fragment_artykulu[]
+  pytanie_bez_odpowiedzi                             pytanie_bez_odpowiedzi[]
+
+  @@index([status], map: "ix_artykul_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model dostepnosc_instruktora {
+  id_dostepnosci Int        @id @default(autoincrement())
+  id_instruktora Int
+  dzien          DateTime   @db.Date
+  godz_od        DateTime   @db.Time(6)
+  godz_do        DateTime   @db.Time(6)
+  instruktor     instruktor @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_instruktora, dzien], map: "ix_dostepnosc_instr_dzien")
+}
+
+model egzemplarz {
+  id_egzemplarza       Int                    @id @default(autoincrement())
+  id_modelu            Int
+  kod_inwentarzowy     String                 @unique @db.VarChar(30)
+  rozmiar              String?                @db.VarChar(10)
+  dlugosc_cm           Int?                   @db.SmallInt
+  stan                 stan_egzemplarza       @default(DOSTEPNY)
+  data_zakupu          DateTime?              @db.Date
+  model_sprzetu        model_sprzetu          @relation(fields: [id_modelu], references: [id_modelu], onDelete: NoAction, onUpdate: NoAction)
+  pozycja_rezerwacji   pozycja_rezerwacji[]
+  zgloszenie_serwisowe zgloszenie_serwisowe[]
+
+  @@index([id_modelu, stan], map: "ix_egzemplarz_model_stan")
+}
+
+model fragment_artykulu {
+  id_fragmentu Int                   @id @default(autoincrement())
+  id_artykulu  Int
+  numer        Int                   @db.SmallInt
+  tresc        String
+  wektor       Unsupported("vector(1024)")
+  artykul      artykul               @relation(fields: [id_artykulu], references: [id_artykulu], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_artykulu, numer])
+  @@index([wektor], map: "ix_fragment_artykulu_hnsw")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model instruktor {
+  id_instruktora           Int                        @id
+  bio                      String?
+  jezyki                   String[]                   @default(["pl"]) @db.VarChar(5)
+  stopien_uprawnien        String?                    @db.VarChar(80)
+  stawka_godzinowa         Decimal                    @db.Decimal(8, 2)
+  srednia_ocena            Decimal                    @default(0) @db.Decimal(3, 2)
+  liczba_opinii            Int                        @default(0)
+  zdjecie_url              String?                    @db.VarChar(500)
+  aktywny                  Boolean                    @default(true)
+  dostepnosc_instruktora   dostepnosc_instruktora[]
+  uzytkownik               uzytkownik                 @relation(fields: [id_instruktora], references: [id_uzytkownika], onDelete: Cascade, onUpdate: NoAction)
+  instruktor_specjalizacja instruktor_specjalizacja[]
+  lekcja                   lekcja[]
+  opinia                   opinia[]
+  profil_ai_instruktora    profil_ai_instruktora?
+  rekomendacja             rekomendacja[]
+}
+
+model instruktor_specjalizacja {
+  id_instruktora Int
+  specjalizacja  String     @db.VarChar(40)
+  instruktor     instruktor @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([id_instruktora, specjalizacja])
+}
+
+model kategoria_sprzetu {
+  id_kategorii  Int             @id @default(autoincrement())
+  nazwa         String          @unique @db.VarChar(60)
+  model_sprzetu model_sprzetu[]
+}
+
+model kategoria_wiedzy {
+  id_kategorii_wiedzy Int       @id @default(autoincrement())
+  nazwa               String    @unique @db.VarChar(80)
+  kolejnosc           Int       @default(0) @db.SmallInt
+  artykul             artykul[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lekcja {
+  id_lekcji           Int            @id @default(autoincrement())
+  id_instruktora      Int
+  id_klienta          Int
+  data_rozpoczecia    DateTime       @db.Timestamptz(6)
+  czas_trwania_min    Int            @db.SmallInt
+  poziom              poziom_jazdy
+  liczba_uczestnikow  Int            @default(1) @db.SmallInt
+  cena                Decimal        @db.Decimal(8, 2)
+  status              status_lekcji  @default(ZAREZERWOWANA)
+  notatka_instruktora String?
+  data_utworzenia     DateTime       @default(now()) @db.Timestamptz(6)
+  instruktor          instruktor     @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik          uzytkownik     @relation(fields: [id_klienta], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  opinia              opinia?
+  platnosc            platnosc[]
+  rekomendacja        rekomendacja[]
+
+  @@index([id_instruktora, data_rozpoczecia], map: "ix_lekcja_instr_termin")
+  @@index([id_klienta], map: "ix_lekcja_klient")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model model_sprzetu {
+  id_modelu          Int                  @id @default(autoincrement())
+  id_kategorii       Int
+  producent          String               @db.VarChar(80)
+  nazwa              String               @db.VarChar(120)
+  opis               String?
+  poziom_docelowy    poziom_jazdy?
+  cena_za_dzien      Decimal              @db.Decimal(8, 2)
+  kaucja             Decimal              @default(0) @db.Decimal(8, 2)
+  zdjecie_url        String?              @db.VarChar(500)
+  aktywny            Boolean              @default(true)
+  egzemplarz         egzemplarz[]
+  kategoria_sprzetu  kategoria_sprzetu    @relation(fields: [id_kategorii], references: [id_kategorii], onDelete: NoAction, onUpdate: NoAction)
+  pozycja_rezerwacji pozycja_rezerwacji[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model opinia {
+  id_opinii             Int               @id @default(autoincrement())
+  id_lekcji             Int               @unique
+  id_klienta            Int
+  id_instruktora        Int
+  ocena                 Int               @db.SmallInt
+  tresc                 String
+  status                status_opinii     @default(OCZEKUJE)
+  powod_ukrycia         String?           @db.VarChar(255)
+  odpowiedz_instruktora String?
+  data_utworzenia       DateTime          @default(now()) @db.Timestamptz(6)
+  instruktor            instruktor        @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik            uzytkownik        @relation(fields: [id_klienta], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  lekcja                lekcja            @relation(fields: [id_lekcji], references: [id_lekcji], onDelete: NoAction, onUpdate: NoAction)
+  osadzenie_opinii      osadzenie_opinii?
+
+  @@index([id_instruktora, status], map: "ix_opinia_instr_status")
+}
+
+model osadzenie_opinii {
+  id_opinii       Int                   @id
+  wektor          Unsupported("vector(1024)")
+  model           String                @db.VarChar(60)
+  data_utworzenia DateTime              @default(now()) @db.Timestamptz(6)
+  opinia          opinia                @relation(fields: [id_opinii], references: [id_opinii], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([wektor], map: "ix_osadzenie_opinii_hnsw")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model platnosc {
+  id_platnosci       Int                 @id @default(autoincrement())
+  id_rezerwacji      Int?
+  id_lekcji          Int?
+  kwota              Decimal             @db.Decimal(10, 2)
+  waluta             String              @default("PLN") @db.Char(3)
+  status             status_platnosci    @default(OCZEKUJE)
+  id_sesji_stripe    String?             @unique @db.VarChar(255)
+  data_utworzenia    DateTime            @default(now()) @db.Timestamptz(6)
+  data_zakonczenia   DateTime?           @db.Timestamptz(6)
+  lekcja             lekcja?             @relation(fields: [id_lekcji], references: [id_lekcji], onDelete: NoAction, onUpdate: NoAction)
+  rezerwacja_sprzetu rezerwacja_sprzetu? @relation(fields: [id_rezerwacji], references: [id_rezerwacji], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model powiadomienie {
+  id_powiadomienia Int        @id @default(autoincrement())
+  id_uzytkownika   Int
+  typ              String     @db.VarChar(60)
+  temat            String     @db.VarChar(200)
+  status           String     @default("W_KOLEJCE") @db.VarChar(20)
+  data_wyslania    DateTime?  @db.Timestamptz(6)
+  uzytkownik       uzytkownik @relation(fields: [id_uzytkownika], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pozycja_rezerwacji {
+  id_pozycji         Int                @id @default(autoincrement())
+  id_rezerwacji      Int
+  id_modelu          Int
+  id_egzemplarza     Int?
+  rozmiar_zalecany   String?            @db.VarChar(10)
+  cena               Decimal            @db.Decimal(8, 2)
+  egzemplarz         egzemplarz?        @relation(fields: [id_egzemplarza], references: [id_egzemplarza], onDelete: NoAction, onUpdate: NoAction)
+  model_sprzetu      model_sprzetu      @relation(fields: [id_modelu], references: [id_modelu], onDelete: NoAction, onUpdate: NoAction)
+  rezerwacja_sprzetu rezerwacja_sprzetu @relation(fields: [id_rezerwacji], references: [id_rezerwacji], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_egzemplarza], map: "ix_pozycja_egzemplarz")
+}
+
+model profil_ai_instruktora {
+  id_instruktora        Int                   @id
+  podsumowanie          String
+  cechy                 Json
+  wektor                Unsupported("vector(1024)")
+  liczba_opinii_ujetych Int
+  data_aktualizacji     DateTime              @default(now()) @db.Timestamptz(6)
+  instruktor            instruktor            @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([wektor], map: "ix_profil_ai_hnsw")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model profil_klienta {
+  id_klienta      Int          @id
+  wzrost_cm       Int?         @db.SmallInt
+  waga_kg         Decimal?     @db.Decimal(5, 1)
+  rozmiar_buta_eu Decimal?     @db.Decimal(3, 1)
+  poziom_jazdy    poziom_jazdy @default(POCZATKUJACY)
+  data_urodzenia  DateTime?    @db.Date
+  uzytkownik      uzytkownik   @relation(fields: [id_klienta], references: [id_uzytkownika], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model pytanie_bez_odpowiedzi {
+  id_pytania      Int             @id @default(autoincrement())
+  id_wiadomosci   Int             @unique
+  tresc           String
+  status          status_pytania  @default(NOWE)
+  id_artykulu     Int?
+  data_utworzenia DateTime        @default(now()) @db.Timestamptz(6)
+  artykul         artykul?        @relation(fields: [id_artykulu], references: [id_artykulu], onDelete: NoAction, onUpdate: NoAction)
+  wiadomosc_czatu wiadomosc_czatu @relation(fields: [id_wiadomosci], references: [id_wiadomosci], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rekomendacja {
+  id_rekomendacji   Int             @id @default(autoincrement())
+  id_wiadomosci     Int
+  id_instruktora    Int
+  pozycja           Int             @db.SmallInt
+  wynik_dopasowania Decimal         @db.Decimal(4, 3)
+  uzasadnienie      String
+  id_lekcji         Int?
+  instruktor        instruktor      @relation(fields: [id_instruktora], references: [id_instruktora], onDelete: NoAction, onUpdate: NoAction)
+  lekcja            lekcja?         @relation(fields: [id_lekcji], references: [id_lekcji], onDelete: NoAction, onUpdate: NoAction)
+  wiadomosc_czatu   wiadomosc_czatu @relation(fields: [id_wiadomosci], references: [id_wiadomosci], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_wiadomosci, pozycja])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rezerwacja_sprzetu {
+  id_rezerwacji                                                   Int                    @id @default(autoincrement())
+  id_klienta                                                      Int
+  data_od                                                         DateTime               @db.Date
+  data_do                                                         DateTime               @db.Date
+  status                                                          status_rezerwacji      @default(UTWORZONA)
+  kwota_calkowita                                                 Decimal                @default(0) @db.Decimal(10, 2)
+  id_pracownika_wydania                                           Int?
+  id_pracownika_zwrotu                                            Int?
+  data_wydania                                                    DateTime?              @db.Timestamptz(6)
+  data_zwrotu                                                     DateTime?              @db.Timestamptz(6)
+  data_utworzenia                                                 DateTime               @default(now()) @db.Timestamptz(6)
+  platnosc                                                        platnosc[]
+  pozycja_rezerwacji                                              pozycja_rezerwacji[]
+  klient            uzytkownik             @relation("rezerwacja_sprzetu_id_klientaTouzytkownik", fields: [id_klienta], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik_rezerwacja_sprzetu_id_pracownika_wydaniaTouzytkownik uzytkownik?            @relation("rezerwacja_sprzetu_id_pracownika_wydaniaTouzytkownik", fields: [id_pracownika_wydania], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik_rezerwacja_sprzetu_id_pracownika_zwrotuTouzytkownik  uzytkownik?            @relation("rezerwacja_sprzetu_id_pracownika_zwrotuTouzytkownik", fields: [id_pracownika_zwrotu], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  zgloszenie_serwisowe                                            zgloszenie_serwisowe[]
+
+  @@index([id_klienta], map: "ix_rezerwacja_klient")
+  @@index([data_od, data_do], map: "ix_rezerwacja_termin")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rozmowa_czatu {
+  id_rozmowy       Int               @id @default(autoincrement())
+  id_uzytkownika   Int?
+  id_sesji_goscia  String?           @db.Uuid
+  data_rozpoczecia DateTime          @default(now()) @db.Timestamptz(6)
+  uzytkownik       uzytkownik?       @relation(fields: [id_uzytkownika], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  wiadomosc_czatu  wiadomosc_czatu[]
+}
+
+model token_odswiezania {
+  id_tokenu      Int        @id @default(autoincrement())
+  id_uzytkownika Int
+  token_hash     String     @unique @db.VarChar(255)
+  wygasa         DateTime   @db.Timestamptz(6)
+  uniewazniony   Boolean    @default(false)
+  uzytkownik     uzytkownik @relation(fields: [id_uzytkownika], references: [id_uzytkownika], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model uzytkownik {
+  id_uzytkownika                                                          Int                    @id @default(autoincrement())
+  email                                                                   String                 @unique @db.VarChar(255)
+  haslo_hash                                                              String                 @db.VarChar(255)
+  imie                                                                    String                 @db.VarChar(80)
+  nazwisko                                                                String                 @db.VarChar(80)
+  telefon                                                                 String?                @db.VarChar(20)
+  rola                                                                    rola_uzytkownika       @default(KLIENT)
+  aktywny                                                                 Boolean                @default(true)
+  data_utworzenia                                                         DateTime               @default(now()) @db.Timestamptz(6)
+  email_potwierdzony                                                      Boolean                @default(false)
+  artykul_artykul_id_autoraTouzytkownik                                   artykul[]              @relation("artykul_id_autoraTouzytkownik")
+  artykul_artykul_id_zatwierdzajacegoTouzytkownik                         artykul[]              @relation("artykul_id_zatwierdzajacegoTouzytkownik")
+  instruktor                                                              instruktor?
+  lekcja                                                                  lekcja[]
+  opinia                                                                  opinia[]
+  powiadomienie                                                           powiadomienie[]
+  profil_klienta                                                          profil_klienta?
+  rezerwacja_sprzetu_rezerwacja_sprzetu_id_klientaTouzytkownik            rezerwacja_sprzetu[]   @relation("rezerwacja_sprzetu_id_klientaTouzytkownik")
+  rezerwacja_sprzetu_rezerwacja_sprzetu_id_pracownika_wydaniaTouzytkownik rezerwacja_sprzetu[]   @relation("rezerwacja_sprzetu_id_pracownika_wydaniaTouzytkownik")
+  rezerwacja_sprzetu_rezerwacja_sprzetu_id_pracownika_zwrotuTouzytkownik  rezerwacja_sprzetu[]   @relation("rezerwacja_sprzetu_id_pracownika_zwrotuTouzytkownik")
+  rozmowa_czatu                                                           rozmowa_czatu[]
+  token_odswiezania                                                       token_odswiezania[]
+  wpis_audytu                                                             wpis_audytu[]
+  zgloszenie_serwisowe                                                    zgloszenie_serwisowe[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model wiadomosc_czatu {
+  id_wiadomosci          Int                     @id @default(autoincrement())
+  id_rozmowy             Int
+  nadawca                nadawca_wiadomosci
+  tresc                  String
+  narzedzie              narzedzie_ai            @default(BRAK)
+  zrodla                 Json?
+  ocena_uzytkownika      Int?                    @db.SmallInt
+  liczba_tokenow         Int?
+  data_utworzenia        DateTime                @default(now()) @db.Timestamptz(6)
+  pytanie_bez_odpowiedzi pytanie_bez_odpowiedzi?
+  rekomendacja           rekomendacja[]
+  rozmowa_czatu          rozmowa_czatu           @relation(fields: [id_rozmowy], references: [id_rozmowy], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_rozmowy, data_utworzenia], map: "ix_wiadomosc_rozmowa")
+}
+
+model wpis_audytu {
+  id_wpisu       BigInt      @id @default(autoincrement())
+  id_uzytkownika Int?
+  akcja          String      @db.VarChar(60)
+  encja          String      @db.VarChar(60)
+  id_encji       Int?
+  dane_przed     Json?
+  dane_po        Json?
+  adres_ip       String?     @db.Inet
+  znacznik_czasu DateTime    @default(now()) @db.Timestamptz(6)
+  uzytkownik     uzytkownik? @relation(fields: [id_uzytkownika], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([znacznik_czasu], map: "ix_audyt_czas")
+  @@index([encja, id_encji], map: "ix_audyt_encja")
+}
+
+model zgloszenie_serwisowe {
+  id_zgloszenia      Int                 @id @default(autoincrement())
+  id_egzemplarza     Int
+  id_pracownika      Int
+  id_rezerwacji      Int?
+  opis_uszkodzenia   String
+  status             status_zgloszenia   @default(OTWARTE)
+  oplata_za_szkode   Decimal             @default(0) @db.Decimal(8, 2)
+  data_zgloszenia    DateTime            @default(now()) @db.Timestamptz(6)
+  data_zamkniecia    DateTime?           @db.Timestamptz(6)
+  egzemplarz         egzemplarz          @relation(fields: [id_egzemplarza], references: [id_egzemplarza], onDelete: NoAction, onUpdate: NoAction)
+  uzytkownik         uzytkownik          @relation(fields: [id_pracownika], references: [id_uzytkownika], onDelete: NoAction, onUpdate: NoAction)
+  rezerwacja_sprzetu rezerwacja_sprzetu? @relation(fields: [id_rezerwacji], references: [id_rezerwacji], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum nadawca_wiadomosci {
+  UZYTKOWNIK
+  ASYSTENT
+}
+
+enum narzedzie_ai {
+  DOBOR_INSTRUKTORA
+  BAZA_WIEDZY
+  BRAK
+}
+
+enum poziom_jazdy {
+  POCZATKUJACY
+  SREDNIOZAAWANSOWANY
+  ZAAWANSOWANY
+}
+
+enum rola_uzytkownika {
+  KLIENT
+  INSTRUKTOR
+  PRACOWNIK
+  ADMIN
+}
+
+enum stan_egzemplarza {
+  DOSTEPNY
+  WYPOZYCZONY
+  W_SERWISIE
+  WYCOFANY
+}
+
+enum status_artykulu {
+  SZKIC
+  PROPOZYCJA
+  OPUBLIKOWANY
+  ARCHIWALNY
+}
+
+enum status_lekcji {
+  ZAREZERWOWANA
+  POTWIERDZONA
+  ODBYTA
+  ANULOWANA
+  NIEOBECNOSC
+}
+
+enum status_opinii {
+  OCZEKUJE
+  OPUBLIKOWANA
+  UKRYTA
+}
+
+enum status_platnosci {
+  OCZEKUJE
+  ZAKONCZONA
+  NIEUDANA
+  ZWROCONA
+}
+
+enum status_pytania {
+  NOWE
+  OBSLUZONE
+  ODRZUCONE
+}
+
+enum status_rezerwacji {
+  UTWORZONA
+  OPLACONA
+  WYDANA
+  ZWROCONA
+  ANULOWANA
+}
+
+enum status_zgloszenia {
+  OTWARTE
+  W_NAPRAWIE
+  ZAMKNIETE
+}
