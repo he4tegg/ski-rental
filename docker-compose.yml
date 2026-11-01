@@ -50,9 +50,6 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
-      # Lokalny model czatu, np. Ollama uruchomiona na Macu (GPU): OLLAMA_LLM_URL=http://host.docker.internal:11434
-      OLLAMA_LLM_MODEL: ${OLLAMA_LLM_MODEL:-}
-      OLLAMA_LLM_URL: ${OLLAMA_LLM_URL:-http://ollama:11434}
       PROG_PODOBIENSTWA: ${PROG_PODOBIENSTWA:-0.5}
     ports: ["3000:3000"]
     depends_on:
